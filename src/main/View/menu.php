@@ -1,89 +1,129 @@
-<?php $title = 'Composition du menu'; ?>
+<?php
+$title = 'Composition du menu';
+$error = isset($error) ? $error : '';
+$success = isset($success) ? $success : '';
+$menus = isset($menus) && is_array($menus) ? $menus : array();
+$plats = isset($plats) && is_array($plats) ? $plats : array();
+$utilisateurs = isset($utilisateurs) && is_array($utilisateurs) ? $utilisateurs : array();
+$currentMenu = isset($currentMenu) && is_array($currentMenu) ? $currentMenu : null;
+?>
 
 <?php ob_start(); ?>
-<h1>Composer un menu</h1>
+<h1>📋 Composer un menu</h1>
 
-<form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/sauver')); ?>" style="margin-bottom:12px;">
-    <label for="creator">Nom du createur:</label>
-    <input id="creator" name="creator" type="text" value="<?php echo htmlspecialchars($menu['creator']); ?>" />
-    <button type="submit">Enregistrer</button>
-</form>
-
-<p>Date creation: <?php echo htmlspecialchars($menu['created_at']); ?></p>
-<p>Date modification: <?php echo htmlspecialchars($menu['updated_at']); ?></p>
-
-<h2>Plats selectionnes</h2>
-
-<?php if (count($items) === 0) : ?>
-    <p>Aucun plat dans le menu.</p>
-<?php else : ?>
-    <table border="1" cellpadding="6" cellspacing="0">
-        <tr>
-            <th>Plat</th>
-            <th>Prix unitaire</th>
-            <th>Quantite</th>
-            <th>Sous-total</th>
-            <th>Action</th>
-        </tr>
-        <?php foreach ($items as $row) : ?>
-            <tr>
-                <td><?php echo htmlspecialchars($row['nom']); ?></td>
-                <td class="unit-price" data-value="<?php echo number_format($row['prix'], 2, '.', ''); ?>">
-                    <?php echo number_format($row['prix'], 2, ',', ' '); ?> EUR
-                </td>
-                <td>
-                    <input
-                        class="qty-input"
-                        type="number"
-                        min="1"
-                        value="<?php echo (int)$row['quantite']; ?>"
-                        style="width:60px;"
-                        readonly
-                    />
-                </td>
-                <td class="line-total"><?php echo number_format($row['sous_total'], 2, ',', ' '); ?> EUR</td>
-                <td>
-                    <form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/retirer')); ?>">
-                        <input type="hidden" name="plat_id" value="<?php echo (int)$row['id']; ?>" />
-                        <button type="submit">Retirer 1</button>
-                    </form>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    </table>
+<?php if ($error !== '') : ?>
+    <div class="alert alert-error">
+        <strong>Erreur :</strong> <?php echo htmlspecialchars($error); ?>
+    </div>
+<?php endif; ?>
+<?php if ($success !== '') : ?>
+    <div class="alert alert-success">
+        <strong>Succès :</strong> <?php echo htmlspecialchars($success); ?>
+    </div>
 <?php endif; ?>
 
-<h3>Total menu: <span id="menuTotal"><?php echo number_format($total, 2, ',', ' '); ?></span> EUR</h3>
+<h2>Sélectionner un menu existant</h2>
+<?php if (count($menus) === 0) : ?>
+    <div class="info-box">
+        <p>Aucun menu disponible. Créez-en un ci-dessous !</p>
+    </div>
+<?php else : ?>
+    <form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/selectionner')); ?>">
+        <label for="menu_id">📚 Menus disponibles :</label>
+        <select id="menu_id" name="menu_id" required>
+            <option value="">-- Choisir un menu --</option>
+            <?php foreach ($menus as $menuOption) : ?>
+                <option value="<?php echo (int)$menuOption['id']; ?>" <?php echo ($currentMenu && (int)$currentMenu['id'] === (int)$menuOption['id']) ? 'selected' : ''; ?>>
+                    #<?php echo (int)$menuOption['id']; ?> - <?php echo htmlspecialchars($menuOption['nom']); ?> (<?php echo number_format((float)$menuOption['prixTotal'], 2, ',', ' '); ?> EUR)
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" class="btn btn-success">Ouvrir ce menu</button>
+    </form>
+<?php endif; ?>
 
-<p><a href="<?php echo htmlspecialchars(urlFor('/plats')); ?>">Ajouter d'autres plats</a></p>
-<p><a href="<?php echo htmlspecialchars(urlFor('/commande')); ?>">Passer a la commande</a></p>
+<h2>Créer un nouveau menu</h2>
+<form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/creer')); ?>">
+    <label for="nom">📝 Nom du menu :</label>
+    <input id="nom" name="nom" type="text" placeholder="ex: Menu Provence" required />
 
-<script>
-function updateMenuTotal() {
-    var total = 0;
-    var rows = document.querySelectorAll('table tr');
-    for (var i = 1; i < rows.length; i++) {
-        var priceEl = rows[i].querySelector('.unit-price');
-        var qtyEl = rows[i].querySelector('.qty-input');
-        var lineEl = rows[i].querySelector('.line-total');
-        if (!priceEl || !qtyEl || !lineEl) {
-            continue;
-        }
-        var price = parseFloat(priceEl.getAttribute('data-value'));
-        var qty = parseInt(qtyEl.value, 10);
-        var lineTotal = price * qty;
-        lineEl.textContent = lineTotal.toFixed(2).replace('.', ',') + ' EUR';
-        total += lineTotal;
-    }
-    var totalEl = document.getElementById('menuTotal');
-    if (totalEl) {
-        totalEl.textContent = total.toFixed(2).replace('.', ',');
-    }
-}
+    <label for="createur_id">👨‍🍳 Créateur :</label>
+    <select id="createur_id" name="createur_id" required>
+        <option value="">-- Choisir --</option>
+        <?php foreach ($utilisateurs as $utilisateur) : ?>
+            <option value="<?php echo (int)$utilisateur['id']; ?>">
+                <?php echo htmlspecialchars($utilisateur['prenom'] . ' ' . $utilisateur['nom']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
 
-updateMenuTotal();
-</script>
+    <button type="submit" class="btn btn-success">✅ Créer le menu</button>
+</form>
+
+<?php if ($currentMenu) : ?>
+    <div class="divider"></div>
+    
+    <div class="info-box">
+        <h2>Menu courant : <?php echo htmlspecialchars($currentMenu['nom']); ?> (ID #<?php echo (int)$currentMenu['id']; ?>)</h2>
+        <p><strong>Créateur :</strong> <?php echo htmlspecialchars(isset($currentMenu['createurNom']) ? $currentMenu['createurNom'] : 'N/A'); ?></p>
+        <p><strong>Date création :</strong> <?php echo htmlspecialchars(isset($currentMenu['dateCreation']) ? $currentMenu['dateCreation'] : 'N/A'); ?></p>
+        <p><strong>Date mise à jour :</strong> <?php echo htmlspecialchars(isset($currentMenu['dateMiseAJour']) ? $currentMenu['dateMiseAJour'] : 'N/A'); ?></p>
+        <p><strong style="color: var(--accent-color); font-size: 1.1rem;">💰 Prix total : <?php echo number_format((float)(isset($currentMenu['prixTotal']) ? $currentMenu['prixTotal'] : 0), 2, ',', ' '); ?> EUR</strong></p>
+    </div>
+
+    <h3>Ajouter un plat au menu</h3>
+    <form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/ajouter')); ?>">
+        <label for="plat_id">🍽️ Sélectionner un plat :</label>
+        <select id="plat_id" name="plat_id" required>
+            <option value="">-- Choisir un plat --</option>
+            <?php foreach ($plats as $plat) : ?>
+                <option value="<?php echo (int)$plat['id']; ?>">
+                    <?php echo htmlspecialchars($plat['nom']); ?> (<?php echo number_format((float)$plat['prix'], 2, ',', ' '); ?> EUR)
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" class="btn btn-success">➕ Ajouter au menu</button>
+    </form>
+
+    <h3>Plats du menu</h3>
+    <?php $platsMenu = isset($currentMenu['plats']) && is_array($currentMenu['plats']) ? $currentMenu['plats'] : array(); ?>
+    <?php if (count($platsMenu) === 0) : ?>
+        <div class="info-box">
+            <p>Aucun plat dans ce menu. Ajoutez-en un ci-dessus !</p>
+        </div>
+    <?php else : ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Plat</th>
+                    <th>Prix</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($platsMenu as $platMenu) : ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($platMenu['nom']); ?></td>
+                        <td><?php echo number_format((float)$platMenu['prix'], 2, ',', ' '); ?> EUR</td>
+                        <td>
+                            <form method="post" action="<?php echo htmlspecialchars(urlFor('/menu/retirer')); ?>" style="display:inline;">
+                                <input type="hidden" name="plat_id" value="<?php echo (int)$platMenu['id']; ?>" />
+                                <button type="submit" class="btn btn-small">🗑️ Retirer</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <hr class="divider" />
+    <p>
+        <a href="<?php echo htmlspecialchars(urlFor('/commande')); ?>" class="btn btn-success">
+            Passer à la commande →
+        </a>
+    </p>
+<?php endif; ?>
 
 <?php $content = ob_get_clean(); ?>
 <?php require 'layout.php'; ?>
-

@@ -31,22 +31,24 @@ if ($path === '/plats' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     platsAction();
 } elseif ($path === '/menu' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     menuAction();
+} elseif ($path === '/menu/selectionner' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    menuSelectAction();
+} elseif ($path === '/menu/creer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    menuCreateAction();
 } elseif ($path === '/menu/ajouter' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     menuAddAction();
 } elseif ($path === '/menu/retirer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     menuRemoveAction();
-} elseif ($path === '/menu/sauver' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    menuSaveAction();
 } elseif ($path === '/commande' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     commandeAction();
 } elseif ($path === '/commande/valider' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     commandeValidateAction();
 } elseif (in_array($path, array('/annonces', '/login', '/post'), true)) {
     header('HTTP/1.1 410 Gone');
-    echo '<html><body><h1>410 - Route obsolete</h1><p>Utilisez <a href="' . htmlspecialchars(urlFor('/plats')) . '">la liste des plats</a>.</p></body></html>';
+    echo '<html lang="fr"><body><h1>410 - Route obsolete</h1><p>Utilisez <a href="' . htmlspecialchars(urlFor('/plats')) . '">la liste des plats</a>.</p></body></html>';
 } else {
     header('HTTP/1.1 404 Not Found');
-    echo '<html><body><h1>404 - Page non trouvee</h1></body></html>';
+    echo '<html lang="fr"><body><h1>404 - Page non trouvee</h1></body></html>';
 }
 
 ?>

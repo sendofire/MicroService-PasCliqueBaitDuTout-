@@ -1,117 +1,132 @@
 <?php
 
+require_once 'config.php';
+
+function apiRequest($method, $baseUrl, $path, $payload = null)
+{
+    $url = rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+
+    $headers = array('Accept: application/json');
+    $options = array(
+        'http' => array(
+            'method' => strtoupper($method),
+            'ignore_errors' => true,
+            'timeout' => API_TIMEOUT_SECONDS,
+        ),
+    );
+
+    if ($payload !== null) {
+        $headers[] = 'Content-Type: application/json';
+        $options['http']['content'] = json_encode($payload);
+    }
+
+    $options['http']['header'] = implode("\r\n", $headers);
+
+    $context = stream_context_create($options);
+    $raw = @file_get_contents($url, false, $context);
+
+    $statusCode = 0;
+    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $matches)) {
+        $statusCode = (int)$matches[1];
+    }
+
+    $decoded = null;
+    if ($raw !== false && $raw !== '') {
+        $decoded = json_decode($raw, true);
+    }
+
+    if ($statusCode >= 400 || $statusCode === 0) {
+        $errorMessage = 'Erreur API (' . $statusCode . ')';
+        if (is_array($decoded) && isset($decoded['message'])) {
+            $errorMessage .= ': ' . $decoded['message'];
+        }
+        throw new RuntimeException($errorMessage);
+    }
+
+    return $decoded;
+}
+
 function getAllPlats()
 {
+    $plats = apiRequest('GET', PLATS_UTILISATEURS_API_BASE, '/plats');
+    return is_array($plats) ? $plats : array();
 }
 
-function getPlatById($id)
+function getAllUtilisateurs()
 {
-    $plats = getAllPlats();
-    return isset($plats[$id]) ? $plats[$id] : null;
+    $utilisateurs = apiRequest('GET', PLATS_UTILISATEURS_API_BASE, '/utilisateurs');
+    return is_array($utilisateurs) ? $utilisateurs : array();
 }
 
-function initMenuSession()
+function getAllMenus()
 {
-    if (!isset($_SESSION['menu'])) {
-        $_SESSION['menu'] = array(
-            'creator' => '',
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'items' => array()
-        );
+    $menus = apiRequest('GET', MENUS_API_BASE, '/menus');
+    return is_array($menus) ? $menus : array();
+}
+
+function getMenuById($id)
+{
+    if ($id <= 0) {
+        return null;
+    }
+    return apiRequest('GET', MENUS_API_BASE, '/menus/' . (int)$id);
+}
+
+function createMenu($nom, $createurId)
+{
+    return apiRequest('POST', MENUS_API_BASE, '/menus', array(
+        'nom' => $nom,
+        'createurId' => (int)$createurId,
+    ));
+}
+
+function addPlatToMenu($menuId, $platId)
+{
+    return apiRequest('PUT', MENUS_API_BASE, '/menus/' . (int)$menuId . '/plats/' . (int)$platId);
+}
+
+function removePlatFromMenu($menuId, $platId)
+{
+    return apiRequest('DELETE', MENUS_API_BASE, '/menus/' . (int)$menuId . '/plats/' . (int)$platId);
+}
+
+function setCurrentMenuId($menuId)
+{
+    $_SESSION['current_menu_id'] = (int)$menuId;
+}
+
+function getCurrentMenuId()
+{
+    return isset($_SESSION['current_menu_id']) ? (int)$_SESSION['current_menu_id'] : 0;
+}
+
+function getCurrentMenu()
+{
+    $menuId = getCurrentMenuId();
+    if ($menuId <= 0) {
+        return null;
+    }
+
+    try {
+        return getMenuById($menuId);
+    } catch (RuntimeException $e) {
+        return null;
     }
 }
 
-function addPlatToMenu($platId)
+function createCommande($abonneId, $adresseLivraison, $dateLivraison, $menuId, $quantite)
 {
-    initMenuSession();
-    $plat = getPlatById($platId);
-    if ($plat === null) {
-        return;
-    }
-
-    if (!isset($_SESSION['menu']['items'][$platId])) {
-        $_SESSION['menu']['items'][$platId] = 0;
-    }
-    $_SESSION['menu']['items'][$platId]++;
-    $_SESSION['menu']['updated_at'] = date('Y-m-d H:i:s');
-}
-
-function removePlatFromMenu($platId)
-{
-    initMenuSession();
-    if (!isset($_SESSION['menu']['items'][$platId])) {
-        return;
-    }
-
-    $_SESSION['menu']['items'][$platId]--;
-    if ($_SESSION['menu']['items'][$platId] <= 0) {
-        unset($_SESSION['menu']['items'][$platId]);
-    }
-    $_SESSION['menu']['updated_at'] = date('Y-m-d H:i:s');
-}
-
-function setMenuCreator($creator)
-{
-    initMenuSession();
-    $_SESSION['menu']['creator'] = $creator;
-    $_SESSION['menu']['updated_at'] = date('Y-m-d H:i:s');
-}
-
-function getMenuMeta()
-{
-    initMenuSession();
-    return $_SESSION['menu'];
-}
-
-function getMenuItemsDetailed()
-{
-    initMenuSession();
-
-    $rows = array();
-    foreach ($_SESSION['menu']['items'] as $platId => $qty) {
-        $plat = getPlatById((int)$platId);
-        if ($plat === null) {
-            continue;
-        }
-
-        $rows[] = array(
-            'id' => $plat['id'],
-            'nom' => $plat['nom'],
-            'prix' => $plat['prix'],
-            'quantite' => $qty,
-            'sous_total' => $qty * $plat['prix']
-        );
-    }
-
-    return $rows;
-}
-
-function getMenuTotal()
-{
-    $total = 0.0;
-    $rows = getMenuItemsDetailed();
-    foreach ($rows as $row) {
-        $total += $row['sous_total'];
-    }
-    return $total;
-}
-
-function createCommande($quantite, $adresse, $dateLivraison)
-{
-    $totalMenu = getMenuTotal();
-    $totalCommande = $totalMenu * $quantite;
-
-    return array(
-        'numero' => 'CMD-' . date('Ymd-His'),
-        'creator' => isset($_SESSION['menu']['creator']) ? $_SESSION['menu']['creator'] : '',
-        'quantite' => $quantite,
-        'adresse' => $adresse,
-        'date_livraison' => $dateLivraison,
-        'total_menu' => $totalMenu,
-        'total_commande' => $totalCommande,
-        'date_commande' => date('Y-m-d H:i:s')
-    );
+    return apiRequest('POST', COMMANDES_API_BASE, '/commandes', array(
+        'abonneId' => (int)$abonneId,
+        'adresseLivraison' => $adresseLivraison,
+        'dateLivraison' => $dateLivraison,
+        'lignes' => array(
+            array(
+                'menuId' => (int)$menuId,
+                'quantite' => (int)$quantite,
+            ),
+        ),
+    ));
 }
 
 ?>

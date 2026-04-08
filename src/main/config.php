@@ -1,13 +1,16 @@
 <?php
 /**
- * Fichier de configuration
- * Le fichier config.php ne doit JAMAIS être versionné
+ * Configuration IHM.
+ *
+ * Peut etre surcharge via variables d'environnement:
+ * - PLATS_UTILISATEURS_API_BASE
+ * - MENUS_API_BASE
+ * - COMMANDES_API_BASE
  */
 
-// Configuration de la base de données
-define('DB_HOST', 'mysql-exo-td-archi-logicielle-r401.alwaysdata.net');
-define('DB_USER', '453347_annonces');
-define('DB_PASS', 'este257891364');
-define('DB_NAME', 'exo-td-archi-logicielle-r401_annonces-db');
+define('PLATS_UTILISATEURS_API_BASE', getenv('PLATS_UTILISATEURS_API_BASE') ?: 'http://localhost:3003');
+define('MENUS_API_BASE', getenv('MENUS_API_BASE') ?: 'http://localhost:3002');
+define('COMMANDES_API_BASE', getenv('COMMANDES_API_BASE') ?: 'http://localhost:3001');
+define('API_TIMEOUT_SECONDS', 8);
 
 ?>
